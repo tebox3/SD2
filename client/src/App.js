@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-
 function App() {
   const [codigo, setCodigo] = useState('');
   const [codigoAnfitrion, setCodigoAnfitrion] = useState('');
@@ -8,7 +7,7 @@ function App() {
   const [name, setName] = useState('');
   const [nameSubmitted, setNameSubmitted] = useState(false);
   const [roleSelected, setRoleSelected] = useState('');
-  const [codigoInvalido, setCodigoInvalido] = useState(false);  
+  const [codigoInvalido, setCodigoInvalido] = useState(false);
   const [verificarAnfitrion, setverificarAnfitrion] = useState(false);
   const [preguntas, setPreguntas] = useState([{ pregunta: '', respuestas: ['', ''] }]);
   const [verificarPreguntas, setVerificarPreguntas] = useState(true);
@@ -19,7 +18,11 @@ function App() {
   const [respuestaCorrecta, setRespuestaCorrecta] = useState([]);
   const [respuestaEnviada, setRespuestaEnviada] = useState(false);
   const [terminado, setTerminado] = useState(true);
+  const [codigoOriginal, setCodigoOriginal] = useState('');
+  const [codigoAnfitrionCorrecto, setCodigoAnfitrionCorrecto] = useState(false);
   const [resultados, setResultados] = useState([]);
+  const [showCorrectButton, setShowCorrectButton] = useState(preguntas.map(() => true));
+
   const handleNameSubmit = async () => {
     if (roleSelected === 'Alumno') {
       const response = await fetch('/codigo_respuesta', {
@@ -47,7 +50,6 @@ function App() {
   };
 
   const codigoAnfitrionFunc = async () => {
-    console.log("SSSSSSSS")
     if (roleSelected === 'Anfitrion') {
       const response = await fetch('/codigo', {
         method: 'POST',
@@ -56,30 +58,27 @@ function App() {
         },
         body: JSON.stringify({ codigoAnfitrion }),
       });
-      console.log("SSSSSSSS")
       if (response.ok) {
-        console.log("SSSSSSSS")
         const data = await response.json();
         if (data.success) {
-          console.log("SSSSSSSS")
           setverificarAnfitrion(true)
+          setCodigoOriginal(data.codigo)
+          setCodigoAnfitrion(data.codigo)
         } else {
           console.log('Error');
+          setCodigoAnfitrionCorrecto(true)
         }
       } else {
         console.log('Error en la solicitud');
       }
     }
-    
   };
-
 
   const handleRoleSelection = async (role) => {
     setRoleSelected(role);
   };
 
   const fetchData = async () => {
-    console.log('AA')
     const response = await fetch('/preguntas', {
       method: 'POST',
       headers: {
@@ -87,12 +86,7 @@ function App() {
       },
       body: JSON.stringify({ codigo }),
     });
-    console.log('BB')
     const data = await response.json();
-    console.log('CC')
-    console.log(data)
-    console.log(roleSelected)
-    console.log('DD')
     setData(data);
   };
 
@@ -104,8 +98,9 @@ function App() {
     )));
   };
 
-  const addRespuestaCorrecta = (index) => {
-    setRespuestaCorrecta(prevRespuestaCorrecta => prevRespuestaCorrecta.concat(index));
+  const addRespuestaCorrecta = (preguntaIndex, respuestaIndex) => {
+    setRespuestaCorrecta(prevRespuestaCorrecta => prevRespuestaCorrecta.concat(respuestaIndex));
+    setShowCorrectButton(showCorrectButton.map((show, index) => index === preguntaIndex ? false : show));
   };
 
   const enviarRespuestaCorrecta = async () => {
@@ -149,6 +144,7 @@ function App() {
 
   const addPregunta = () => {
     setPreguntas([...preguntas, { pregunta: '', respuestas: ['', ''] }]);
+    setShowCorrectButton([...showCorrectButton, true]);
   };
 
   const TerminarJuego = async () => {
@@ -160,14 +156,10 @@ function App() {
       body: JSON.stringify({ codigoAnfitrion }),
     });
     if (response.ok) {
-      console.log("Antes antes")
       const data = await response.json();
-        setendgame(false)
-        setTerminado(false)
-        console.log("Antes de data")
-        console.log(data)
-        console.log("Partida terminada, recibiendo resultados")
-        setResultados(data)
+      setendgame(false);
+      setTerminado(false);
+      setResultados(data);
     } else {
       console.log('Error en la solicitud');
     }
@@ -182,6 +174,7 @@ function App() {
     "resp": respuestaCorrecta,
     "codigo": codigoAnfitrion
   };
+
   const mandarRespuestas = async () => {
     const response = await fetch('/recibir_respuestas', {
       method: 'POST',
@@ -193,8 +186,8 @@ function App() {
     if (response.ok) {
       const data = await response.json();
       if (data.success) {
-        setendgame(false)
-        console.log("RESPUESTAS ENVIADAS CORRECTAMENTE, FIN DEL JUEGO")
+        setendgame(false);
+        console.log("RESPUESTAS ENVIADAS CORRECTAMENTE, FIN DEL JUEGO");
       } else {
         console.log('Error');
       }
@@ -203,19 +196,12 @@ function App() {
     }
   };
 
-
   const preguntas_respuestas = {
     "preguntas": preguntas,
     "codigo": codigoAnfitrion
   };
 
   const handleSubmitFormulario = async () => {
-    // Lógica para enviar las preguntas y respuestas
-    console.log("AQUIII")
-    console.log(preguntas)
-    console.log(preguntas_respuestas.preguntas)
-    console.log(preguntas_respuestas.preguntas[0].respuestas[1])
-    console.log(preguntas_respuestas.preguntas[0].pregunta)
     const response = await fetch('/ingresar_respuesta', {
       method: 'POST',
       headers: {
@@ -224,12 +210,11 @@ function App() {
       body: JSON.stringify({ preguntas_respuestas }),
     });
     const data = await response.json();
-    setVerificarPreguntas(false)
-    setRespuestaEnviada(true)
-    enviarRespuestaCorrecta()
-    console.log("PREGUNTAS enviadas")
+    setVerificarPreguntas(false);
+    setRespuestaEnviada(true);
+    enviarRespuestaCorrecta();
+    console.log("PREGUNTAS enviadas");
   };
-
 
   useEffect(() => {
     if (roleSelected === 'Alumno') {
@@ -275,46 +260,44 @@ function App() {
           </div>
         ) : (
           <div>
-            {console.log("DATA: ", data)}
             <p>PREGUNTAS</p>
             {showEndScreen ? (
-        <div>
-        {endgame ? (
-          <div>
-          <p>Fin de las preguntas</p>
-        <button onClick={mandarRespuestas}>Enviar respuestas</button>
-        </div>):(
-          <p>Fin del juego, espera respuestas de tu anfitrion.</p>
-        )}
-        </div>
-      ) : (
-        data && data.preguntas && data.preguntas.length > 0 && (
-          <div>
-            <p>Pregunta {currentQuestionIndex + 1}: {data.preguntas[currentQuestionIndex].pregunta}</p>
-            <ul>
-              {data.preguntas[currentQuestionIndex].respuestas.map((respuesta, respuestaIndex) => (
-                <li 
-                  key={respuestaIndex}
-                  onClick={() => handleAnswerClick(respuestaIndex)}
-                  style={{ 
-                    cursor: 'pointer', 
-                    fontWeight: resp[currentQuestionIndex] === respuestaIndex ? 'bold' : 'normal' 
-                  }}
-                >
-                  {respuesta}
-                </li>
+              <div>
+                {endgame ? (
+                  <div>
+                    <p>Fin de las preguntas</p>
+                    <button onClick={mandarRespuestas}>Enviar respuestas</button>
+                  </div>
+                ) : (
+                  <p>Fin del juego, espera respuestas de tu anfitrion.</p>
+                )}
+              </div>
+            ) : (
+              data && data.preguntas && data.preguntas.length > 0 && (
+                <div>
+                  <p>Pregunta {currentQuestionIndex + 1}: {data.preguntas[currentQuestionIndex].pregunta}</p>
+                  <ul>
+                    {data.preguntas[currentQuestionIndex].respuestas.map((respuesta, respuestaIndex) => (
+                      <li 
+                        key={respuestaIndex}
+                        onClick={() => handleAnswerClick(respuestaIndex)}
+                        style={{ 
+                          cursor: 'pointer', 
+                          fontWeight: resp[currentQuestionIndex] === respuestaIndex ? 'bold' : 'normal' 
+                        }}
+                      >
+                        {respuesta}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )
             )}
-      </div>
-
+          </div>
         )
       ) : roleSelected === 'Anfitrion' ? (
         <div>
-        {
-          !verificarAnfitrion ? (
+          {!verificarAnfitrion ? (
             <div>
               <input
                 type="text"
@@ -323,9 +306,13 @@ function App() {
                 placeholder="Codigo"
               />
               <button onClick={codigoAnfitrionFunc}>Enviar</button>
+              {codigoAnfitrionCorrecto && (
+              <p>Codigo incorrecto, recarga la pagina e intente nuevamente</p>
+            )}
             </div>
           ) : verificarPreguntas ? (
             <div>
+              <h1>Codigo: {codigoOriginal}</h1>
               {preguntas.map((item, index) => (
                 <div key={index}>
                   <input
@@ -342,7 +329,9 @@ function App() {
                         onChange={(e) => handleRespuestaChange(index, rIndex, e.target.value)}
                         placeholder={`Respuesta ${rIndex + 1}`}
                       />
-                      <button onClick={() => addRespuestaCorrecta(rIndex)}>Correcta</button>
+                      {showCorrectButton[index] && (
+                        <button onClick={() => addRespuestaCorrecta(index, rIndex)}>Correcta</button>
+                      )}
                     </div>
                   ))}
                   {item.respuestas.length < 5 && (
@@ -353,31 +342,27 @@ function App() {
               <button onClick={addPregunta}>Agregar otra pregunta</button>
               <button onClick={handleSubmitFormulario}>Enviar Preguntas y Respuestas</button>
             </div>
-          ): terminado ? (
+          ) : terminado ? (
             <div>
-            <h1>¿Terminar sesion?</h1>
-            <button onClick={TerminarJuego}>Terminar</button>
+              <h1>Codigo: {codigoOriginal}</h1>
+              <h1>¿Terminar sesion?</h1>
+              <button onClick={TerminarJuego}>Terminar</button>
             </div>
           ) : (
             <div>
-            <h1>Respuestas correctas</h1>
-            {resultados.map((respuesta, rIndex) => (
-                    <div key={rIndex}>
-                      <p>Pregunta {rIndex}: {respuesta}</p>
-                    </div>
-                  ))}
+              <h1>Respuestas correctas</h1>
+              {resultados.map((respuesta, rIndex) => (
+                <div key={rIndex}>
+                  <p>Pregunta {rIndex + 1}: {respuesta}</p>
+                </div>
+              ))}
             </div>
-          )
-        }  
+          )}
         </div>
       ) : null}
     </div>
   );
 }
-
-
-
-
 
 export default App;
 

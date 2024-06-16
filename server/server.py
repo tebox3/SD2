@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
+import random
 import time
 
 app = Flask(__name__)
+codigoSala = []
+codigoSala.append("123456")
 codigos = {}
 respuestas = {}
 correctas = {}
@@ -17,21 +20,35 @@ def home():
         time.sleep(10)
         return {"preguntas": ["Pregunta 1", "Pregunta 2", "Pregunta 3"]}
     
+def generar_codigo_hexadecimal():
+    return ''.join(random.choices('0123456789ABCDEF', k=6))
+    
+
 @app.route("/codigo", methods=["POST"])
 def codigo():
     if request.method == "POST":
         item = request.json.get("codigoAnfitrion")
-        if item:
-            codigos[item]={}
-            respuestas[item]=[]
-        return jsonify(success=True)
+        print("ITEM:   ",item)
+        print("CODIGOSALA:::  ",codigoSala)
+        if item in codigoSala:
+            codigo_generado = generar_codigo_hexadecimal()
+            codigos[codigo_generado]={}
+            respuestas[codigo_generado]=[]
+            return jsonify(success=True, codigo=codigo_generado)
+        else:
+            return jsonify(success=False)
 
 @app.route("/codigo_respuesta", methods=["POST"])
 def codigo_respuesta():
     if request.method == "POST":
         item = request.json.get("codigo")
+        print("ITEEEMMM CLIENTE ", item)
         if item in codigos:
             print("Codigo correcto")
+            print("ITEEEMMM CLIENTE ", item)
+            print("ITEEEMMM CLIENTE ", item)
+            print("ITEEEMMM CLIENTE ", item)
+            print(codigos)
             return jsonify(success=True)
         else:
             print("Codigo inexistente")
