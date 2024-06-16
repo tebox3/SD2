@@ -8,11 +8,18 @@ function App() {
   const [name, setName] = useState('');
   const [nameSubmitted, setNameSubmitted] = useState(false);
   const [roleSelected, setRoleSelected] = useState('');
-  const [codigoInvalido, setCodigoInvalido] = useState(false);
+  const [codigoInvalido, setCodigoInvalido] = useState(false);  
   const [verificarAnfitrion, setverificarAnfitrion] = useState(false);
   const [preguntas, setPreguntas] = useState([{ pregunta: '', respuestas: ['', ''] }]);
   const [verificarPreguntas, setVerificarPreguntas] = useState(true);
-
+  const [resp, setResp] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showEndScreen, setShowEndScreen] = useState(false);
+  const [endgame, setendgame] = useState(true);
+  const [respuestaCorrecta, setRespuestaCorrecta] = useState([]);
+  const [respuestaEnviada, setRespuestaEnviada] = useState(false);
+  const [terminado, setTerminado] = useState(true);
+  const [resultados, setResultados] = useState([]);
   const handleNameSubmit = async () => {
     if (roleSelected === 'Alumno') {
       const response = await fetch('/codigo_respuesta', {
@@ -97,6 +104,30 @@ function App() {
     )));
   };
 
+  const addRespuestaCorrecta = (index) => {
+    setRespuestaCorrecta(prevRespuestaCorrecta => prevRespuestaCorrecta.concat(index));
+  };
+
+  const enviarRespuestaCorrecta = async () => {
+    const response = await fetch('/recibir_respuestas_correctas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ resCorrectas }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        console.log("RESPUESTAS CORRECTAS ENVIADA CORRECTAMENTE")
+      } else {
+        console.log('Error');
+      }
+    } else {
+      console.log('Error en la solicitud');
+    }
+  };
+
   const handlePreguntaChange = (index, value) => {
     setPreguntas(preguntas.map((pregunta, i) => (
       i === index ? { ...pregunta, pregunta: value } : pregunta
@@ -120,6 +151,58 @@ function App() {
     setPreguntas([...preguntas, { pregunta: '', respuestas: ['', ''] }]);
   };
 
+  const TerminarJuego = async () => {
+    const response = await fetch('/terminar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ codigoAnfitrion }),
+    });
+    if (response.ok) {
+      console.log("Antes antes")
+      const data = await response.json();
+        setendgame(false)
+        setTerminado(false)
+        console.log("Antes de data")
+        console.log(data)
+        console.log("Partida terminada, recibiendo resultados")
+        setResultados(data)
+    } else {
+      console.log('Error en la solicitud');
+    }
+  };
+
+  const respuestasFinal = {
+    "resp": resp,
+    "codigo": codigo
+  };
+
+  const resCorrectas = {
+    "resp": respuestaCorrecta,
+    "codigo": codigoAnfitrion
+  };
+  const mandarRespuestas = async () => {
+    const response = await fetch('/recibir_respuestas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ respuestasFinal }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        setendgame(false)
+        console.log("RESPUESTAS ENVIADAS CORRECTAMENTE, FIN DEL JUEGO")
+      } else {
+        console.log('Error');
+      }
+    } else {
+      console.log('Error en la solicitud');
+    }
+  };
+
 
   const preguntas_respuestas = {
     "preguntas": preguntas,
@@ -128,8 +211,11 @@ function App() {
 
   const handleSubmitFormulario = async () => {
     // Lógica para enviar las preguntas y respuestas
+    console.log("AQUIII")
     console.log(preguntas)
     console.log(preguntas_respuestas.preguntas)
+    console.log(preguntas_respuestas.preguntas[0].respuestas[1])
+    console.log(preguntas_respuestas.preguntas[0].pregunta)
     const response = await fetch('/ingresar_respuesta', {
       method: 'POST',
       headers: {
@@ -139,6 +225,8 @@ function App() {
     });
     const data = await response.json();
     setVerificarPreguntas(false)
+    setRespuestaEnviada(true)
+    enviarRespuestaCorrecta()
     console.log("PREGUNTAS enviadas")
   };
 
@@ -148,6 +236,20 @@ function App() {
       fetchData();
     }
   }, [roleSelected]);
+
+  const handleAnswerClick = (respuestaIndex) => {
+    setResp(prevResp => {
+      const newResp = [...prevResp];
+      newResp[currentQuestionIndex] = respuestaIndex;
+      return newResp;
+    });
+
+    if (currentQuestionIndex + 1 < data.preguntas.length) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    } else {
+      setShowEndScreen(true);
+    }
+  };
 
   return (
     <div>
@@ -175,23 +277,38 @@ function App() {
           <div>
             {console.log("DATA: ", data)}
             <p>PREGUNTAS</p>
-            {data && Object.keys(data).length > 0 ? (
-              Object.keys(data).map((key, index) => (
-                <div key={index}>
-                  <p>{key}:</p>
-                  {Array.isArray(data[key]) ? (
-                    data[key].map((item, subIndex) => (
-                      <p key={subIndex}>{item} : {subIndex} : {key}</p>
-                    ))
-                  ) : (
-                    <p>No hay datos disponibles.</p>
-                  )}
+            {showEndScreen ? (
+        <div>
+        {endgame ? (
+          <div>
+          <p>Fin de las preguntas</p>
+        <button onClick={mandarRespuestas}>Enviar respuestas</button>
+        </div>):(
+          <p>Fin del juego, espera respuestas de tu anfitrion.</p>
+        )}
+        </div>
+      ) : (
+        data && data.preguntas && data.preguntas.length > 0 && (
+          <div>
+            <p>Pregunta {currentQuestionIndex + 1}: {data.preguntas[currentQuestionIndex].pregunta}</p>
+            <ul>
+              {data.preguntas[currentQuestionIndex].respuestas.map((respuesta, respuestaIndex) => (
+                <li 
+                  key={respuestaIndex}
+                  onClick={() => handleAnswerClick(respuestaIndex)}
+                  style={{ 
+                    cursor: 'pointer', 
+                    fontWeight: resp[currentQuestionIndex] === respuestaIndex ? 'bold' : 'normal' 
+                  }}
+                >
+                  {respuesta}
+                </li>
+                    ))}
+                  </ul>
                 </div>
-    ))
-  ) : (
-    <p>No hay preguntas disponibles.</p>
-  )}
-</div>
+              )
+            )}
+      </div>
 
         )
       ) : roleSelected === 'Anfitrion' ? (
@@ -225,6 +342,7 @@ function App() {
                         onChange={(e) => handleRespuestaChange(index, rIndex, e.target.value)}
                         placeholder={`Respuesta ${rIndex + 1}`}
                       />
+                      <button onClick={() => addRespuestaCorrecta(rIndex)}>Correcta</button>
                     </div>
                   ))}
                   {item.respuestas.length < 5 && (
@@ -235,7 +353,21 @@ function App() {
               <button onClick={addPregunta}>Agregar otra pregunta</button>
               <button onClick={handleSubmitFormulario}>Enviar Preguntas y Respuestas</button>
             </div>
-          ):null
+          ): terminado ? (
+            <div>
+            <h1>¿Terminar sesion?</h1>
+            <button onClick={TerminarJuego}>Terminar</button>
+            </div>
+          ) : (
+            <div>
+            <h1>Respuestas correctas</h1>
+            {resultados.map((respuesta, rIndex) => (
+                    <div key={rIndex}>
+                      <p>Pregunta {rIndex}: {respuesta}</p>
+                    </div>
+                  ))}
+            </div>
+          )
         }  
         </div>
       ) : null}
